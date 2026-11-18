@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Voice Pair Programmer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Voice Pair Programmer</h1>
+      <span id="status" class="pill" data-state="idle">Not started</span>
+    </header>
+
+    <section class="controls">
+      <button id="toggle">Start</button>
+      <div class="indicator" id="mic" data-on="false">
+        <span class="dot"></span> Mic
+        <span class="meter"><span id="level"></span></span>
+      </div>
+    </section>
+
+    <p id="detail" class="detail" hidden></p>
+
+    <section>
+      <h2>Transcript</h2>
+      <div id="transcript" class="transcript">
+        <p class="empty">Click Start, allow the microphone, and say hello.</p>
+      </div>
+    </section>
+  </main>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
