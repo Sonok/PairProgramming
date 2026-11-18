@@ -20,7 +20,8 @@ const PORT = Number(process.env.PORT) || 3210;
 const ORIGINS = [`http://localhost:${PORT}`, `http://127.0.0.1:${PORT}`];
 
 // Tags on binary messages from the browser
-const TAG_AUDIO = 1;
+const TAG_AUDIO = 1; // 16 kHz PCM from the mic
+const TAG_VIDEO = 2; // one JPEG frame of the shared screen
 
 const app = express();
 app.use(express.static(path.join(import.meta.dirname, '..', 'public')));
@@ -40,6 +41,7 @@ wss.on('connection', (ws: WebSocket) => {
   ws.on('message', (data: Buffer, isBinary: boolean) => {
     if (isBinary) {
       if (data[0] === TAG_AUDIO) gemini?.sendAudio(data.subarray(1));
+      else if (data[0] === TAG_VIDEO) gemini?.sendVideo(data.subarray(1));
       return;
     }
     const msg = JSON.parse(data.toString());

@@ -1,5 +1,9 @@
-// Browser side: captures the mic, streams it to the local server, plays Gemini's audio.
+// Browser side: captures the mic (and optionally the screen), streams them to the
+// local server, and plays Gemini's audio.
 const TAG_AUDIO = 1;
+const TAG_VIDEO = 2;
+const FRAME_MS = 1000; // send at most one screen frame per second
+const FRAME_MAX = 1280; // longest side of a sent frame, in pixels
 const STATUS_TEXT = {
   idle: 'Not started',
   connecting: 'Connecting…',
@@ -12,8 +16,12 @@ const $ = (id) => document.getElementById(id);
 let ws, micStream, captureCtx, playCtx, playback;
 let running = false;
 let bubble = null; // transcript paragraph currently being filled
+let screenStream, screenVideo; // screenVideo is only used where frames can't be read directly
+let frameBusy = false;
+let lastFrame = 0;
 
 $('toggle').onclick = () => (running ? stop() : start().catch(fail));
+$('share').onclick = () => (screenStream ? stopShare() : startShare().catch(shareFailed));
 
 async function start() {
   running = true;
@@ -26,6 +34,7 @@ async function start() {
     audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
   });
   $('mic').dataset.on = 'true';
+  $('share').disabled = false;
 
   // Playback runs at 24 kHz, the rate of Gemini's audio.
   playCtx = new AudioContext({ sampleRate: 24000 });
@@ -46,12 +55,17 @@ async function start() {
   capture.port.onmessage = (e) => {
     showLevel(new Int16Array(e.data));
     sendBinary(TAG_AUDIO, e.data);
+    // Fallback screen capture is driven from here, not a timer: browsers slow
+    // timers down in background tabs, and this page is usually in the background.
+    if (screenVideo?.videoWidth) sendFrame(screenVideo, screenVideo.videoWidth, screenVideo.videoHeight);
   };
   captureCtx.createMediaStreamSource(micStream).connect(capture);
 }
 
 function stop() {
   running = false;
+  stopShare();
+  $('share').disabled = true;
   ws?.close();
   micStream?.getTracks().forEach((t) => t.stop());
   captureCtx?.close();
@@ -67,6 +81,71 @@ function fail(err) {
   stop();
   setStatus('closed');
   showDetail(err.name === 'NotAllowedError' ? 'Microphone permission was denied.' : err.message);
+}
+
+async function startShare() {
+  const stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 5 }, audio: false });
+  if (!running) return stream.getTracks().forEach((t) => t.stop());
+  screenStream = stream;
+  const track = stream.getVideoTracks()[0];
+  track.onended = stopShare; // the browser's own "Stop sharing" button
+  $('share').textContent = 'Stop sharing';
+  $('screen').dataset.on = 'true';
+  $('sharing').hidden = false;
+  lastFrame = 0;
+
+  if (window.MediaStreamTrackProcessor) {
+    // Chrome and Edge: read frames straight off the track. Works in a background tab.
+    const reader = new MediaStreamTrackProcessor({ track }).readable.getReader();
+    for (;;) {
+      const { value: frame, done } = await reader.read();
+      if (done) break;
+      await sendFrame(frame, frame.displayWidth, frame.displayHeight);
+      frame.close();
+    }
+  } else {
+    screenVideo = document.createElement('video');
+    screenVideo.muted = true;
+    screenVideo.srcObject = stream;
+    await screenVideo.play();
+  }
+}
+
+function stopShare() {
+  screenStream?.getTracks().forEach((t) => t.stop());
+  screenStream = screenVideo = undefined;
+  $('share').textContent = 'Share screen';
+  $('screen').dataset.on = 'false';
+  $('sharing').hidden = true;
+}
+
+function shareFailed(err) {
+  stopShare();
+  if (err.name !== 'NotAllowedError') showDetail(`Screen sharing failed: ${err.message}`); // NotAllowedError: you cancelled the picker
+}
+
+// Sends one screen frame as a JPEG, unless one was sent less than FRAME_MS ago.
+async function sendFrame(source, width, height) {
+  const now = performance.now();
+  if (frameBusy || now - lastFrame < FRAME_MS) return;
+  frameBusy = true;
+  lastFrame = now;
+  try {
+    const scale = Math.min(1, FRAME_MAX / Math.max(width, height));
+    const w = Math.round(width * scale);
+    const h = Math.round(height * scale);
+    const canvas = new OffscreenCanvas(w, h);
+    canvas.getContext('2d').drawImage(source, 0, 0, w, h);
+    const jpeg = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.7 });
+    sendBinary(TAG_VIDEO, await jpeg.arrayBuffer());
+
+    const preview = $('preview');
+    preview.width = 320;
+    preview.height = Math.round((320 * h) / w);
+    preview.getContext('2d').drawImage(canvas, 0, 0, preview.width, preview.height);
+  } finally {
+    frameBusy = false;
+  }
 }
 
 function sendBinary(tag, buffer) {

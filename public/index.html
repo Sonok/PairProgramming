@@ -19,14 +19,23 @@
         <span class="dot"></span> Mic
         <span class="meter"><span id="level"></span></span>
       </div>
+      <button id="share" class="secondary" disabled>Share screen</button>
+      <div class="indicator" id="screen" data-on="false">
+        <span class="dot"></span> Screen
+      </div>
     </section>
 
     <p id="detail" class="detail" hidden></p>
 
+    <figure id="sharing" class="sharing" hidden>
+      <canvas id="preview"></canvas>
+      <figcaption>Gemini sees this, about once a second.</figcaption>
+    </figure>
+
     <section>
       <h2>Transcript</h2>
       <div id="transcript" class="transcript">
-        <p class="empty">Click Start, allow the microphone, and say hello.</p>
+        <p class="empty">Click Start, allow the microphone, and say hello. Share your screen to let Gemini see what you're working on.</p>
       </div>
     </section>
   </main>

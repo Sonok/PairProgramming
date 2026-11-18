@@ -8,7 +8,9 @@ const SYSTEM_PROMPT = `You are a concise, friendly pair programmer talking with 
 Rules:
 - Keep spoken replies short: one or two sentences unless asked for more.
 - Don't repeat back what the developer said.
-- If you didn't clearly hear something, ask instead of guessing.`;
+- If you didn't clearly hear something, ask instead of guessing.
+- The developer can share their screen. When they do, you get it as video frames, about one per second. Use what you see to answer, and refer to code, files, and errors by what is on screen.
+- If nothing is shared, or the text is too small to read, say so instead of guessing.`;
 
 export type Status = 'connecting' | 'connected' | 'reconnecting' | 'closed';
 
@@ -48,6 +50,12 @@ export class GeminiLive {
   sendAudio(pcm16k: Buffer) {
     this.session?.sendRealtimeInput({
       audio: { data: pcm16k.toString('base64'), mimeType: 'audio/pcm;rate=16000' },
+    });
+  }
+
+  sendVideo(jpeg: Buffer) {
+    this.session?.sendRealtimeInput({
+      video: { data: jpeg.toString('base64'), mimeType: 'image/jpeg' },
     });
   }
 

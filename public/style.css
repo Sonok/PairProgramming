@@ -57,6 +57,8 @@ button {
   cursor: pointer;
 }
 button.stop { background: transparent; color: var(--bad); border-color: var(--bad); }
+button.secondary { background: transparent; color: var(--accent); }
+button:disabled { opacity: 0.45; cursor: default; }
 
 .indicator { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 14px; }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
@@ -66,6 +68,10 @@ button.stop { background: transparent; color: var(--bad); border-color: var(--ba
 .meter span { display: block; height: 100%; width: 0; background: var(--accent); }
 
 .detail { color: var(--bad); font-size: 14px; margin: 16px 0 0; }
+
+.sharing { margin: 20px 0 0; }
+.sharing canvas { display: block; width: 100%; max-width: 320px; border: 1px solid var(--line); border-radius: 8px; }
+.sharing figcaption { color: var(--muted); font-size: 13px; margin-top: 6px; }
 
 .transcript {
   background: var(--panel);
